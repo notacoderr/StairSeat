@@ -67,7 +67,7 @@ class StairSeat extends PluginBase implements Listener{
         $pk->metadata = [Entity::DATA_FLAGS => 
                             [Entity::DATA_TYPE_LONG, 1 << Entity::DATA_FLAG_IMMOBILE | 1 << Entity::DATA_FLAG_SILENT | 1 << Entity::DATA_FLAG_INVISIBLE]
                         ];
-        $player->dataPacket($pk);
+        $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
         $pk = new SetEntityLinkPacket();
         $entLink = new EntityLink();
         $entLink->fromEntityUniqueId = $id;
@@ -75,7 +75,8 @@ class StairSeat extends PluginBase implements Listener{
         $entLink->immediate = true;
         $entLink->type = EntityLink::TYPE_RIDER;
         $pk->link = $entLink;
-        $player->dataPacket($pk);
+        $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
+        //To do: keep sitting when join another player
     }
     
     private function removePlayer(int $id){
