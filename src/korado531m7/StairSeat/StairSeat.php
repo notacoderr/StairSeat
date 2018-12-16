@@ -126,5 +126,6 @@ class StairSeat extends PluginBase implements Listener{
         $pk->link = $entLink;
         $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
         $this->setSitPlayerId($player, $id, $block->floor());
+        //To do: need to keep sitting although a new player joined...
     }
 }
