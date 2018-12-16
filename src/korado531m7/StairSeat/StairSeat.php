@@ -6,9 +6,10 @@ use pocketmine\block\Block;
 use pocketmine\entity\Entity;
 use pocketmine\event\Listener;
 use pocketmine\event\block\BlockBreakEvent;
-use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
 use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
@@ -43,11 +44,17 @@ class StairSeat extends PluginBase implements Listener{
                     $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
                 }else{
                     $eid = Entity::$entityCount++;
-                    $this->setSitting($player, $block, $eid);
+                    $this->setSitting($player, $block->asVector3(), $eid);
                     $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
                 }
             }
         }
+    }
+    
+    public function onJoin(PlayerJoinEvent $event){
+        $player = $event->getPlayer();
+        //Can't apply without delaying that's why using delayed task
+        if(count($this->sit) >= 1) $this->getScheduler()->scheduleDelayedTask(new SendTask($player, $this->sit, $this), 30);
     }
     
     public function onBreak(BlockBreakEvent $event){
@@ -109,23 +116,27 @@ class StairSeat extends PluginBase implements Listener{
         unset($this->sit[$player->getName()]);
     }
     
-    private function setSitting(Player $player, Block $block, int $id){
-        $pk = new AddEntityPacket();
-        $pk->entityRuntimeId = $id;
-        $pk->type = 10;
-        $pk->position = $pos = $block->add(0.5, 2, 0.5);
+    public function setSitting(Player $player, Vector3 $pos, int $id, ?Player $specific = null){
+        $addEntity = new AddEntityPacket();
+        $addEntity->entityRuntimeId = $id;
+        $addEntity->type = 10;
+        $addEntity->position = $pos->add(0.5, 2, 0.5);
         $flags = (1 << Entity::DATA_FLAG_IMMOBILE | 1 << Entity::DATA_FLAG_SILENT | 1 << Entity::DATA_FLAG_INVISIBLE);
-        $pk->metadata = [Entity::DATA_FLAGS => [Entity::DATA_TYPE_LONG, $flags]];
-        $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
-        $pk = new SetEntityLinkPacket();
+        $addEntity->metadata = [Entity::DATA_FLAGS => [Entity::DATA_TYPE_LONG, $flags]];
+        $setEntity = new SetEntityLinkPacket();
         $entLink = new EntityLink();
         $entLink->fromEntityUniqueId = $id;
         $entLink->toEntityUniqueId = $player->getId();
         $entLink->immediate = true;
         $entLink->type = EntityLink::TYPE_RIDER;
-        $pk->link = $entLink;
-        $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
-        $this->setSitPlayerId($player, $id, $block->floor());
-        //To do: need to keep sitting although a new player joined...
+        $setEntity->link = $entLink;
+        if($specific){
+            $specific->dataPacket($addEntity);
+            $specific->dataPacket($setEntity);
+        }else{
+            $this->setSitPlayerId($player, $id, $pos->floor());
+            $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $addEntity);
+            $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $setEntity);
+        }
     }
 }
