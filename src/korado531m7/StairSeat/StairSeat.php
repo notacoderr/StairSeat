@@ -5,20 +5,26 @@ use pocketmine\Player;
 use pocketmine\block\Block;
 use pocketmine\entity\Entity;
 use pocketmine\event\Listener;
+use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
 use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
 use pocketmine\network\mcpe\protocol\SetEntityLinkPacket;
 use pocketmine\network\mcpe\protocol\types\EntityLink;
 use pocketmine\plugin\PluginBase;
+use pocketmine\utils\Config;
 
 class StairSeat extends PluginBase implements Listener{
     private $sit = [];
     
     public function onEnable(){
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
+        @mkdir($this->getDataFolder(), 0744, true);
+        $this->saveResource('config.yml', false);
+        $this->config = new Config($this->getDataFolder().'config.yml', Config::YAML);
     }
     
     public function onQuit(PlayerQuitEvent $event){
@@ -32,11 +38,22 @@ class StairSeat extends PluginBase implements Listener{
         $player = $event->getPlayer();
         if(!$this->isSitting($player)){
             $block = $event->getBlock();
-            if(is_subclass_of($block, 'pocketmine\block\Stair')){
-                $eid = Entity::$entityCount++;
-                $this->setSitting($player, $block, $eid);
-                $player->sendTip('Tap jump to exit the seat');
+            if($this->isStairBlock($block)){
+                if($usePlayer = $this->isUsingSeat($block->floor())){
+                    $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
+                }else{
+                    $eid = Entity::$entityCount++;
+                    $this->setSitting($player, $block, $eid);
+                    $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
+                }
             }
+        }
+    }
+    
+    public function onBreak(BlockBreakEvent $event){
+        $block = $event->getBlock();
+        if($this->isStairBlock($block) && ($usingPlayer = $this->isUsingSeat($block->floor()))){
+            $this->unsetSitting($usingPlayer);
         }
     }
     
@@ -45,21 +62,31 @@ class StairSeat extends PluginBase implements Listener{
         $player = $event->getPlayer();
         $to = (int) $event->getTo()->getY();
         $from = (int) $event->getFrom()->getY();
-        if($this->isSitting($player) && abs(microtime(true) - $this->getSitPlayerTime($player)) > 1.5 && $from !== $to){
+        if($this->isSitting($player) && abs(microtime(true) - $this->getSitData($player, 1)) > 1.5 && $from !== $to){
             $this->unsetSitting($player);
         }
     }
     
-    private function getSitPlayerTime(Player $player) : int{
-        return $this->sit[$player->getName()][1];
+    private function isStairBlock(Block $block) : bool{
+        return is_subclass_of($block, 'pocketmine\block\Stair');
     }
     
-    private function getSitPlayerId(Player $player) : int{
-        return $this->sit[$player->getName()][0];
+    private function isUsingSeat(Vector3 $pos) : ?Player{
+        foreach($this->sit as $name => $data){
+            if($pos->distance($data[2]) == 0){
+                $player = $this->getServer()->getPlayer($name);
+                return $player;
+            }
+        }
+        return null;
     }
     
-    private function setSitPlayerId(Player $player, int $id) : void{
-        $this->sit[$player->getName()] = [$id, microtime(true)];
+    private function getSitData(Player $player, int $type = 0){
+        return $this->sit[$player->getName()][$type];
+    }
+    
+    private function setSitPlayerId(Player $player, int $id, Vector3 $pos) : void{
+        $this->sit[$player->getName()] = [$id, microtime(true), $pos];
     }
     
     private function isSitting(Player $player) : bool{
@@ -67,7 +94,7 @@ class StairSeat extends PluginBase implements Listener{
     }
     
     private function unsetSitting(Player $player){
-        $id = $this->getSitPlayerId($player);
+        $id = $this->getSitData($player);
         $pk = new SetEntityLinkPacket();
         $entLink = new EntityLink();
         $entLink->fromEntityUniqueId = $id;
@@ -86,10 +113,9 @@ class StairSeat extends PluginBase implements Listener{
         $pk = new AddEntityPacket();
         $pk->entityRuntimeId = $id;
         $pk->type = 10;
-        $pk->position = $block->add(0.5, 2, 0.5);
-        $pk->metadata = [Entity::DATA_FLAGS => 
-                            [Entity::DATA_TYPE_LONG, 1 << Entity::DATA_FLAG_IMMOBILE | 1 << Entity::DATA_FLAG_SILENT | 1 << Entity::DATA_FLAG_INVISIBLE]
-                        ];
+        $pk->position = $pos = $block->add(0.5, 2, 0.5);
+        $flags = (1 << Entity::DATA_FLAG_IMMOBILE | 1 << Entity::DATA_FLAG_SILENT | 1 << Entity::DATA_FLAG_INVISIBLE);
+        $pk->metadata = [Entity::DATA_FLAGS => [Entity::DATA_TYPE_LONG, $flags]];
         $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
         $pk = new SetEntityLinkPacket();
         $entLink = new EntityLink();
@@ -99,6 +125,6 @@ class StairSeat extends PluginBase implements Listener{
         $entLink->type = EntityLink::TYPE_RIDER;
         $pk->link = $entLink;
         $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $pk);
-        $this->setSitPlayerId($player, $id);
+        $this->setSitPlayerId($player, $id, $block->floor());
     }
 }

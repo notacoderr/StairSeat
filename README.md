@@ -1,5 +1,6 @@
 # StairSeat
 **Sit on the stair block**
+**Supported all stair blocks**
 
 
 ### Feature
@@ -11,4 +12,22 @@ Install this plugin and run your server.
 place stair block and tap (or click) it.
 To cancel, jump or sneak.
 
-**Supported all stair blocks**
+
+### Settings
+Open config.yml in plugin folder.
+`send-tip-when-sit`       - Tap jump to exit the seat
+
+Replacement:
+`@b` - Block, its name, where player try to seat
+
+Example: You sit on @b Block!
+
+
+`tryto-sit-already-inuse` - Send message when trying to seat on stair which is already used
+
+Replacement:
+`@b` - Block, its name, where player try to seat
+
+`@p` - Sitting player's name
+
+Example: You are trying to seat @b but it is used by @p
