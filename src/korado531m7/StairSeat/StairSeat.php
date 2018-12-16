@@ -3,7 +3,6 @@ namespace korado531m7\StairSeat;
 
 use pocketmine\Player;
 use pocketmine\block\Block;
-use pocketmine\block\BlockIds;
 use pocketmine\entity\Entity;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerQuitEvent;
@@ -33,8 +32,7 @@ class StairSeat extends PluginBase implements Listener{
         $player = $event->getPlayer();
         if(!$this->isSitting($player)){
             $block = $event->getBlock();
-            $id = $block->getId();
-            if($id === BlockIds::WOODEN_STAIRS){
+            if(is_subclass_of($block, 'pocketmine\block\Stair')){
                 $eid = Entity::$entityCount++;
                 $this->setSitting($player, $block, $eid);
                 $player->sendTip('Tap jump to exit the seat');
