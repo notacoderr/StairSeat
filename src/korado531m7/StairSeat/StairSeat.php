@@ -113,6 +113,7 @@ class StairSeat extends PluginBase implements Listener{
         $pk = new RemoveEntityPacket();
         $pk->entityUniqueId = $id;
         $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(),$pk);
+        $player->setGenericFlag(Entity::DATA_FLAG_RIDING, false);
         unset($this->sit[$player->getName()]);
     }
     
@@ -134,6 +135,7 @@ class StairSeat extends PluginBase implements Listener{
             $specific->dataPacket($addEntity);
             $specific->dataPacket($setEntity);
         }else{
+            $player->setGenericFlag(Entity::DATA_FLAG_RIDING, true);
             $this->setSitPlayerId($player, $id, $pos->floor());
             $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $addEntity);
             $this->getServer()->broadcastPacket($this->getServer()->getOnlinePlayers(), $setEntity);
