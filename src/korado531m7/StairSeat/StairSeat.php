@@ -3,6 +3,7 @@ namespace korado531m7\StairSeat;
 
 use pocketmine\Player;
 use pocketmine\block\Block;
+use pocketmine\block\Stair;
 use pocketmine\entity\Entity;
 use pocketmine\event\Listener;
 use pocketmine\event\block\BlockBreakEvent;
@@ -75,7 +76,7 @@ class StairSeat extends PluginBase implements Listener{
     }
     
     private function isStairBlock(Block $block) : bool{
-        return is_subclass_of($block, 'pocketmine\block\Stair');
+        return $block instanceof Stair;
     }
     
     private function isUsingSeat(Vector3 $pos) : ?Player{
