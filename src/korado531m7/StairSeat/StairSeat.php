@@ -68,9 +68,9 @@ class StairSeat extends PluginBase implements Listener{
     //NOTE: I want to call such a related packet or event but it doesn't work so i use playermoveevent instead.
     public function onJump(PlayerMoveEvent $event){
         $player = $event->getPlayer();
-        $to = (int) $event->getTo()->getY();
-        $from = (int) $event->getFrom()->getY();
-        if($this->isSitting($player) && abs(microtime(true) - $this->getSitData($player, 1)) > 1.5 && $from !== $to){
+        $to = round($event->getTo()->getY(), 1);
+        $from = round($event->getFrom()->getY(), 1);
+        if($this->isSitting($player) && (microtime(true) - $this->getSitData($player, 1)) > 0.145 && $from !== $to){
             $this->unsetSitting($player);
         }
     }
@@ -122,7 +122,7 @@ class StairSeat extends PluginBase implements Listener{
         $addEntity = new AddEntityPacket();
         $addEntity->entityRuntimeId = $id;
         $addEntity->type = 10;
-        $addEntity->position = $pos->add(0.5, 2, 0.5);
+        $addEntity->position = $pos->add(0.5, 1.5, 0.5);
         $flags = (1 << Entity::DATA_FLAG_IMMOBILE | 1 << Entity::DATA_FLAG_SILENT | 1 << Entity::DATA_FLAG_INVISIBLE);
         $addEntity->metadata = [Entity::DATA_FLAGS => [Entity::DATA_TYPE_LONG, $flags]];
         $setEntity = new SetEntityLinkPacket();
