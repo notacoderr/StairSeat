@@ -38,6 +38,9 @@ class StairSeat extends PluginBase implements Listener{
     
     public function onInteract(PlayerInteractEvent $event){
         $player = $event->getPlayer();
+        
+        if(in_array($player->getLevel()->getFolderName(), $this->config->getNested('worlds')) == false) return;
+        
         if(!$this->isSitting($player)){
             $block = $event->getBlock();
             if($this->isStairBlock($block)){
