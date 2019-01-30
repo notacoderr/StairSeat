@@ -10,6 +10,7 @@ use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\event\player\PlayerToggleSneakEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
@@ -68,12 +69,19 @@ class StairSeat extends PluginBase implements Listener{
         }
     }
     
+    public function onSneak(PlayerToggleSneakEvent $event){
+        $player = $event->getPlayer();
+        if($this->isSitting($player)){
+            $this->unsetSitting($player);
+        }
+    }
+    
     //NOTE: I want to call such a related packet or event but it doesn't work so i use playermoveevent instead.
     public function onJump(PlayerMoveEvent $event){
         $player = $event->getPlayer();
         $to = round($event->getTo()->getY(), 1);
         $from = round($event->getFrom()->getY(), 1);
-        if($this->isSitting($player) && (microtime(true) - $this->getSitData($player, 1)) > 0.145 && $from !== $to){
+        if($this->isSitting($player) && (microtime(true) - $this->getSitData($player, 1)) > 1.111 && $from !== $to){
             $this->unsetSitting($player);
         }
     }
