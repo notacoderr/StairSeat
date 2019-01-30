@@ -1,5 +1,5 @@
 # StairSeat Configuration File
-
+worlds: ["school"]
 # ----------------------------------------------------------------------------
 
 # Send tip when sit down
