@@ -20,6 +20,9 @@ use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
 use pocketmine\inventory\Inventory;
 
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+
 class StairSeat extends PluginBase implements Listener{
     private $sit = [];
     
@@ -28,6 +31,32 @@ class StairSeat extends PluginBase implements Listener{
         @mkdir($this->getDataFolder(), 0744, true);
         $this->saveResource('config.yml', false);
         $this->config = new Config($this->getDataFolder().'config.yml', Config::YAML);
+    }
+	
+	public function onCommand(CommandSender $sender, Command $command, string $label, array $args) : bool
+	{
+        $name = $command->getName();
+		if($sender instanceof Player || $sender instanceof leCustomPlayer)
+		{
+			switch($name)
+			{
+				case "sit":
+					if(!$this->isSitting($sender)){ //needs own function
+						$pos = new Vector3(intval($sender->getX()), intval($sender->getY() - 0.5), intval($sender->getZ()));
+						$block = $sender->getLevel()->getBlock($pos);
+						if($usePlayer = $this->isUsingSeat($block->floor())){
+							$sender->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
+						}else{
+							$eid = Entity::$entityCount++;
+							$height = ($this->isStairBlock($block) || $this->isSlabBlock($block)) ? 1.51 : 2.01;
+							$this->setSitting($sender, $block->asVector3(), $eid, null, $height);
+							$sender->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
+						}
+					}
+				break;
+			}
+		}
+        return true;
     }
     
     public function onQuit(PlayerQuitEvent $event){
@@ -72,22 +101,24 @@ class StairSeat extends PluginBase implements Listener{
     
     public function onSneak(PlayerToggleSneakEvent $event){
         $player = $event->getPlayer();
+		
         if(in_array($player->getLevel()->getFolderName(), $this->config->getNested('worlds')) == false) return;
-        
-        if($this->isSitting($player)) return;
-        /*{
-            $this->unsetSitting($player);
-        }*/
-        $pos = new Vector3($player->getX(), $player->getY() - 0.5, $player->getZ());
-        $block = $player->getLevel()->getBlock($pos->round());
-        if($this->isStairBlock($block) or $this->isSlabBlock($block)){
-            if($usePlayer = $this->isUsingSeat($block->floor())){
-               $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
-            }else{
-               $eid = Entity::$entityCount++;
-               $this->setSitting($player, $block->asVector3(), $eid);
-               $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
-            }
+
+        if(!$this->isSitting($player))
+        {
+            $pos = new Vector3(intval($player->getX()), intval($player->getY() - 0.5), intval($player->getZ()));
+			$block = $player->getLevel()->getBlock($pos);
+			if($this->isStairBlock($block) or $this->isSlabBlock($block))
+			{
+				if($usePlayer = $this->isUsingSeat($block->floor()))
+				{
+				   $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
+				}else{
+				   $eid = Entity::$entityCount++;
+				   $this->setSitting($player, $block->asVector3(), $eid);
+				   $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
+				}
+			}
         }
     }
     
@@ -148,11 +179,11 @@ class StairSeat extends PluginBase implements Listener{
         unset($this->sit[$player->getName()]);
     }
     
-    public function setSitting(Player $player, Vector3 $pos, int $id, ?Player $specific = null){
+    public function setSitting(Player $player, Vector3 $pos, int $id, ?Player $specific = null, float $height = 1.51){
         $addEntity = new AddEntityPacket();
         $addEntity->entityRuntimeId = $id;
         $addEntity->type = 10;
-        $addEntity->position = $pos->add(0.5, 1.5, 0.5);
+        $addEntity->position = $pos->add(0.5, $height, 0.5);
         $flags = (1 << Entity::DATA_FLAG_IMMOBILE | 1 << Entity::DATA_FLAG_SILENT | 1 << Entity::DATA_FLAG_INVISIBLE);
         $addEntity->metadata = [Entity::DATA_FLAGS => [Entity::DATA_TYPE_LONG, $flags]];
         $setEntity = new SetEntityLinkPacket();
