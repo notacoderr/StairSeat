@@ -74,19 +74,19 @@ class StairSeat extends PluginBase implements Listener{
         $player = $event->getPlayer();
         if(in_array($player->getLevel()->getFolderName(), $this->config->getNested('worlds')) == false) return;
         
-        /*if($this->isSitting($player)){
+        if($this->isSitting($player)) return;
+        /*{
             $this->unsetSitting($player);
         }*/
-        $pos = new \pocketmine\math\Vector3(round($player->getX()), round($player->getY() - 0.5), round($player->getZ()));
-        $block = $player->getLevel()->getBlock($pos);
-        //$block = $player->getBlock();
+        $pos = new Vector3($player->getX(), $player->getY() - 0.5, $player->getZ());
+        $block = $player->getLevel()->getBlock($pos->round());
         if($this->isStairBlock($block) or $this->isSlabBlock($block)){
             if($usePlayer = $this->isUsingSeat($block->floor())){
                $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
             }else{
-                    $eid = Entity::$entityCount++;
-                    $this->setSitting($player, $block->asVector3(), $eid);
-                    $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
+               $eid = Entity::$entityCount++;
+               $this->setSitting($player, $block->asVector3(), $eid);
+               $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
             }
         }
     }
