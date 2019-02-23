@@ -2,8 +2,7 @@
 namespace korado531m7\StairSeat;
 
 use pocketmine\Player;
-use pocketmine\block\Block;
-use pocketmine\block\Stair;
+use pocketmine\block\{Block, Stair, Slab};
 use pocketmine\entity\Entity;
 use pocketmine\event\Listener;
 use pocketmine\event\block\BlockBreakEvent;
@@ -19,6 +18,7 @@ use pocketmine\network\mcpe\protocol\SetEntityLinkPacket;
 use pocketmine\network\mcpe\protocol\types\EntityLink;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
+use pocketmine\inventory\Inventory;
 
 class StairSeat extends PluginBase implements Listener{
     private $sit = [];
@@ -41,10 +41,11 @@ class StairSeat extends PluginBase implements Listener{
         $player = $event->getPlayer();
         
         if(in_array($player->getLevel()->getFolderName(), $this->config->getNested('worlds')) == false) return;
+        if($player->getInventory()->getItemInHand()->getId() <> 0) return;
         
         if(!$this->isSitting($player)){
             $block = $event->getBlock();
-            if($this->isStairBlock($block)){
+            if($this->isStairBlock($block) or $this->isSlabBlock($block)){
                 if($usePlayer = $this->isUsingSeat($block->floor())){
                     $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
                 }else{
@@ -71,8 +72,22 @@ class StairSeat extends PluginBase implements Listener{
     
     public function onSneak(PlayerToggleSneakEvent $event){
         $player = $event->getPlayer();
-        if($this->isSitting($player)){
+        if(in_array($player->getLevel()->getFolderName(), $this->config->getNested('worlds')) == false) return;
+        
+        /*if($this->isSitting($player)){
             $this->unsetSitting($player);
+        }*/
+        $pos = new \pocketmine\math\Vector3(round($player->getX()), round($player->getY() - 0.5), round($player->getZ()));
+        $block = $player->getLevel()->getBlock($pos);
+        //$block = $player->getBlock();
+        if($this->isStairBlock($block) or $this->isSlabBlock($block)){
+            if($usePlayer = $this->isUsingSeat($block->floor())){
+               $player->sendMessage(str_replace(['@p','@b'],[$usePlayer->getName(), $block->getName()],$this->config->get('tryto-sit-already-inuse')));
+            }else{
+                    $eid = Entity::$entityCount++;
+                    $this->setSitting($player, $block->asVector3(), $eid);
+                    $player->sendTip(str_replace('@b',$block->getName(),$this->config->get('send-tip-when-sit')));
+            }
         }
     }
     
@@ -88,6 +103,10 @@ class StairSeat extends PluginBase implements Listener{
     
     private function isStairBlock(Block $block) : bool{
         return $block instanceof Stair;
+    }
+    
+    private function isSlabBlock(Block $block) : bool{
+        return $block instanceof Slab;
     }
     
     private function isUsingSeat(Vector3 $pos) : ?Player{
